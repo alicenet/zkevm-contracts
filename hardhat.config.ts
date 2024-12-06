@@ -2,6 +2,7 @@ import "dotenv/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "@openzeppelin/hardhat-upgrades";
 import "hardhat-dependency-compiler";
+import "@cuonghx.gu-tech/hardhat-gcp-kms-signer-plugin";
 
 import {HardhatUserConfig} from "hardhat/config";
 
@@ -15,6 +16,16 @@ const DEFAULT_MNEMONIC = "test test test test test test test test test test test
 /**
  * @type import('hardhat/config').HardhatUserConfig
  */
+
+const gcpKmsConfigs = [
+    {
+        projectId: process.env.GCP_PROJECT_ID || "",
+        locationId: process.env.GCP_LOCATION_ID || "",
+        keyRingId: process.env.GCP_KEY_RING_ID || "",
+        keyId: process.env.GCP_KEY_ID || "",
+        versionId: process.env.GCP_KEY_VERSION_ID || "1",
+    },
+];
 
 const config: HardhatUserConfig = {
     dependencyCompiler: {
@@ -41,7 +52,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 999999,
+                        runs: 0,
                     },
                     evmVersion: "shanghai",
                 },
@@ -80,7 +91,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 500,
+                        runs: 0,
                     },
                     evmVersion: "shanghai",
                 }, // try yul optimizer
@@ -90,7 +101,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 999,
+                        runs: 0,
                     },
                     evmVersion: "shanghai",
                 },
@@ -100,7 +111,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 500,
+                        runs: 0,
                     },
                     evmVersion: "shanghai",
                 }, // try yul optimizer
@@ -121,7 +132,7 @@ const config: HardhatUserConfig = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 500,
+                        runs: 0,
                     },
                     evmVersion: "shanghai",
                 }, // try yul optimizer
@@ -141,15 +152,9 @@ const config: HardhatUserConfig = {
     },
     networks: {
         mainnet: {
-            url: process.env.MAINNET_PROVIDER
-                ? process.env.MAINNET_PROVIDER
-                : `https://mainnet.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
-            accounts: {
-                mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
-                path: "m/44'/60'/0'/0",
-                initialIndex: 0,
-                count: 20,
-            },
+            url: `https://eth-mainnet.g.alchemy.com/v2/${process.env.ALCHEMY_PROJECT_ID}`,
+            accounts: [process.env.MAINNET_PK || "0x0000000000000000000000000000000000000000000000000000000000000000"],
+            gcpKmsConfigs,
         },
         ropsten: {
             url: process.env.ROPSTEN_PROVIDER
@@ -161,6 +166,7 @@ const config: HardhatUserConfig = {
                 initialIndex: 0,
                 count: 20,
             },
+            gcpKmsConfigs,
         },
         goerli: {
             url: process.env.GOERLI_PROVIDER
@@ -172,6 +178,7 @@ const config: HardhatUserConfig = {
                 initialIndex: 0,
                 count: 20,
             },
+            gcpKmsConfigs,
         },
         rinkeby: {
             url: process.env.RINKEBY_PROVIDER
@@ -183,17 +190,12 @@ const config: HardhatUserConfig = {
                 initialIndex: 0,
                 count: 20,
             },
+            gcpKmsConfigs,
         },
         sepolia: {
-            url: process.env.SEPOLIA_PROVIDER
-                ? process.env.SEPOLIA_PROVIDER
-                : `https://sepolia.infura.io/v3/${process.env.INFURA_PROJECT_ID}`,
-            accounts: {
-                mnemonic: process.env.MNEMONIC || DEFAULT_MNEMONIC,
-                path: "m/44'/60'/0'/0",
-                initialIndex: 0,
-                count: 20,
-            },
+            url: `https://eth-sepolia.g.alchemy.com/v2/${process.env.ALCHEMY_PROJECT_ID}`,
+            accounts: [process.env.SEPOLIA_PK || "0x0000000000000000000000000000000000000000000000000000000000000000"],
+            gcpKmsConfigs,
         },
         localhost: {
             url: "http://127.0.0.1:8545",
@@ -203,6 +205,7 @@ const config: HardhatUserConfig = {
                 initialIndex: 0,
                 count: 20,
             },
+            gcpKmsConfigs,
         },
         hardhat: {
             initialDate: "0",
@@ -214,6 +217,17 @@ const config: HardhatUserConfig = {
                 initialIndex: 0,
                 count: 20,
             },
+            gcpKmsConfigs,
+        },
+        alicenetTestnet: {
+            url: "https://api.staging.alice.net",
+            gas: "auto",
+            gasMultiplier: 2,
+            gasPrice: "auto",
+            accounts: [
+                process.env.ALICENET_TESTNET_PK || "0x0000000000000000000000000000000000000000000000000000000000000000",
+            ],
+            gcpKmsConfigs,
         },
         polygonZKEVMTestnet: {
             url: "https://rpc.cardona.zkevm-rpc.com",
@@ -223,6 +237,7 @@ const config: HardhatUserConfig = {
                 initialIndex: 0,
                 count: 20,
             },
+            gcpKmsConfigs,
         },
         polygonZKEVMMainnet: {
             url: "https://zkevm-rpc.com",
@@ -232,6 +247,7 @@ const config: HardhatUserConfig = {
                 initialIndex: 0,
                 count: 20,
             },
+            gcpKmsConfigs,
         },
         zkevmDevnet: {
             url: "http://123:123:123:123:123",
@@ -241,6 +257,7 @@ const config: HardhatUserConfig = {
                 initialIndex: 0,
                 count: 20,
             },
+            gcpKmsConfigs,
         },
     },
     gasReporter: {
@@ -256,8 +273,17 @@ const config: HardhatUserConfig = {
             sepolia: `${process.env.ETHERSCAN_API_KEY}`,
             mainnet: `${process.env.ETHERSCAN_API_KEY}`,
             zkevmDevnet: `${process.env.ETHERSCAN_API_KEY}`,
+            alicenetTestnet: "0000000000000000000000000000000000",
         },
         customChains: [
+            {
+                network: "alicenetTestnet",
+                chainId: 10042,
+                urls: {
+                    apiURL: "https://block-explorer.staging.alice.net/api",
+                    browserURL: "https://block-explorer.staging.alice.net",
+                },
+            },
             {
                 network: "polygonZKEVMMainnet",
                 chainId: 1101,

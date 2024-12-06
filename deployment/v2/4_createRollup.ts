@@ -6,7 +6,7 @@ import fs = require("fs");
 
 import * as dotenv from "dotenv";
 dotenv.config({path: path.resolve(__dirname, "../../.env")});
-import {ethers, upgrades} from "hardhat";
+import {ethers, getKmsSigners, upgrades} from "hardhat";
 import {HardhatEthersSigner} from "@nomicfoundation/hardhat-ethers/signers";
 const {create2Deployment} = require("../helpers/deployment-helpers");
 
@@ -89,9 +89,7 @@ async function main() {
     let currentProvider = ethers.provider;
     if (createRollupParameters.multiplierGas || createRollupParameters.maxFeePerGas) {
         if (process.env.HARDHAT_NETWORK !== "hardhat") {
-            currentProvider = ethers.getDefaultProvider(
-                `https://${process.env.HARDHAT_NETWORK}.infura.io/v3/${process.env.INFURA_PROJECT_ID}`
-            ) as any;
+            currentProvider = ethers.getDefaultProvider(process.env.HARDHAT_NETWORK || "sepolia") as any;
             if (createRollupParameters.maxPriorityFeePerGas && createRollupParameters.maxFeePerGas) {
                 console.log(
                     `Hardcoded gas used: MaxPriority${createRollupParameters.maxPriorityFeePerGas} gwei, MaxFee${createRollupParameters.maxFeePerGas} gwei`
@@ -119,18 +117,8 @@ async function main() {
         }
     }
 
-    // Load deployer
-    let deployer;
-    if (createRollupParameters.deployerPvtKey) {
-        deployer = new ethers.Wallet(createRollupParameters.deployerPvtKey, currentProvider);
-    } else if (process.env.MNEMONIC) {
-        deployer = ethers.HDNodeWallet.fromMnemonic(
-            ethers.Mnemonic.fromPhrase(process.env.MNEMONIC),
-            "m/44'/60'/0'/0/0"
-        ).connect(currentProvider);
-    } else {
-        [deployer] = await ethers.getSigners();
-    }
+    const [deployer] = await getKmsSigners();
+    console.log("Deployer address: ", await deployer.getAddress());
 
     // Load Rollup manager
     const PolgonRollupManagerFactory = await ethers.getContractFactory("PolygonRollupManager", deployer);
@@ -139,7 +127,7 @@ async function main() {
     ) as PolygonRollupManager;
 
     const DEFAULT_ADMIN_ROLE = ethers.ZeroHash;
-    if ((await rollupManagerContract.hasRole(DEFAULT_ADMIN_ROLE, deployer.address)) == false) {
+    if ((await rollupManagerContract.hasRole(DEFAULT_ADMIN_ROLE, await deployer.getAddress())) == false) {
         throw new Error(
             `Deployer does not have admin role. Use the test flag on deploy_parameters if this is a test deployment`
         );
@@ -164,11 +152,11 @@ async function main() {
 
     // Check role:
 
-    if ((await rollupManagerContract.hasRole(ADD_ROLLUP_TYPE_ROLE, deployer.address)) == false)
-        await rollupManagerContract.grantRole(ADD_ROLLUP_TYPE_ROLE, deployer.address);
+    if ((await rollupManagerContract.hasRole(ADD_ROLLUP_TYPE_ROLE, await deployer.getAddress())) == false)
+        await rollupManagerContract.grantRole(ADD_ROLLUP_TYPE_ROLE, await deployer.getAddress());
 
-    if ((await rollupManagerContract.hasRole(CREATE_ROLLUP_ROLE, deployer.address)) == false)
-        await rollupManagerContract.grantRole(CREATE_ROLLUP_ROLE, deployer.address);
+    if ((await rollupManagerContract.hasRole(CREATE_ROLLUP_ROLE, await deployer.getAddress())) == false)
+        await rollupManagerContract.grantRole(CREATE_ROLLUP_ROLE, await deployer.getAddress());
 
     // Create consensus implementation
     const PolygonconsensusFactory = (await ethers.getContractFactory(consensusContract, deployer)) as any;
@@ -282,7 +270,10 @@ async function main() {
         // Load data commitee
         const PolygonValidiumContract = (await PolygonconsensusFactory.attach(newZKEVMAddress)) as PolygonValidium;
         // add data commitee to the consensus contract
-        if ((await PolygonValidiumContract.admin()) == deployer.address) {
+        if (
+            (await PolygonValidiumContract.admin()).toLocaleLowerCase() ===
+            (await deployer.getAddress()).toLocaleLowerCase()
+        ) {
             await (
                 await PolygonValidiumContract.setDataAvailabilityProtocol(polygonDataCommittee?.target as any)
             ).wait();

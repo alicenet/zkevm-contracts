@@ -55,7 +55,9 @@ export async function deployPolygonZkEVMDeployer(
     const zkEVMDeployerAddress = ethers.getCreateAddress({from: tx.from as string, nonce: tx.nonce});
     if ((await signerProvider.getCode(zkEVMDeployerAddress)) !== "0x") {
         const zkEVMDeployerContract = PolgonZKEVMDeployerFactory.attach(zkEVMDeployerAddress) as PolygonZkEVMDeployer;
-        expect(await zkEVMDeployerContract.owner()).to.be.equal(signer.address);
+        expect((await zkEVMDeployerContract.owner()).toLocaleLowerCase()).to.be.equal(
+            (await signer.getAddress()).toLocaleLowerCase()
+        );
         return [zkEVMDeployerContract, ethers.ZeroAddress];
     }
 
@@ -73,7 +75,7 @@ export async function deployPolygonZkEVMDeployer(
     const zkEVMDeployerContract = (await PolgonZKEVMDeployerFactory.attach(
         zkEVMDeployerAddress
     )) as PolygonZkEVMDeployer;
-    expect(await zkEVMDeployerContract.owner()).to.be.equal(deployerAddress);
+    expect((await zkEVMDeployerContract.owner()).toLocaleLowerCase()).to.be.equal(deployerAddress.toLocaleLowerCase());
     return [zkEVMDeployerContract, tx.from as string];
 }
 
